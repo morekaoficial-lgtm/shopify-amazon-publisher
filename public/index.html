@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopify → Amazon Publisher</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        header {
+            background: #232f3e;
+            color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        header h1 { font-size: 24px; }
+        header p { opacity: 0.8; margin-top: 5px; }
+        
+        .grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .panel h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #232f3e;
+        }
+        
+        .product-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .product-item {
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .product-item:hover {
+            border-color: #232f3e;
+            background: #f8f9fa;
+        }
+        .product-item.active {
+            border-color: #232f3e;
+            background: #232f3e;
+            color: white;
+        }
+        .product-item .sku { font-size: 12px; opacity: 0.7; }
+        .product-item .title { font-weight: 500; margin-top: 4px; }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+        .status-has-asin { background: #d4edda; color: #155724; }
+        .status-no-asin { background: #fff3cd; color: #856404; }
+        .status-published { background: #cce5ff; color: #004085; }
+        
+        .detail-section { margin-bottom: 25px; }
+        .detail-section h3 {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .info-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .info-item label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .info-item .value {
+            font-weight: 500;
+            margin-top: 4px;
+            word-break: break-word;
+        }
+        
+        .missing-fields {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .missing-fields h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        .field-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #ffc107;
+            color: #333;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 3px;
+            font-weight: 500;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn-primary {
+            background: #232f3e;
+            color: white;
+        }
+        .btn-primary:hover { background: #37475a; }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover { background: #218838; }
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        .btn-warning:hover { background: #e0a800; }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .generated-content {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+        .generated-content.visible { display: block; }
+        .generated-content h3 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .loading.visible { display: block; }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #232f3e;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .result-box {
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+        }
+        .result-box.visible { display: block; }
+        .result-success { background: #d4edda; border: 1px solid #28a745; }
+        .result-error { background: #f8d7da; border: 1px solid #dc3545; }
+        
+        .editable-field {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            margin-top: 5px;
+            resize: vertical;
+        }
+        .editable-field:focus {
+            outline: none;
+            border-color: #232f3e;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab.active {
+            border-bottom-color: #232f3e;
+            font-weight: 600;
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .image-gallery {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .image-gallery img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .category-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .seo-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .seo-preview .seo-title {
+            color: #1a0dab;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .seo-preview .seo-url {
+            color: #006621;
+            font-size: 14px;
+        }
+        .seo-preview .seo-desc {
+            color: #545454;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Shopify → Amazon Publisher</h1>
+            <p>Selecciona un producto, revisa los campos faltantes, genera contenido con IA y publica en Amazon</p>
+        </header>
+        
+        <div class="grid">
+            <!-- Panel izquierdo: Lista de productos -->
+            <div class="panel">
+                <h2>📦 Productos Shopify</h2>
+                <div class="product-list" id="productList">
+                    <div class="loading visible">
+                        <div class="spinner"></div>
+                        <p>Cargando productos...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel derecho: Detalle y acciones -->
+            <div class="panel" id="detailPanel">
+                <h2>🔍 Análisis del Producto</h2>
+                <p style="color: #666; text-align: center; padding: 40px;">
+                    Selecciona un producto de la lista para comenzar
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProduct = null;
+        let currentAnalysis = null;
+        
+        // Cargar productos al inicio
+        async function loadProducts() {
+            try {
+                const res = await fetch('/api/products');
+                const data = await res.json();
+                renderProductList(data.products || []);
+            } catch (err) {
+                document.getElementById('productList').innerHTML = 
+                    `<p style="color: red; padding: 20px;">Error cargando productos: ${err.message}</p>`;
+            }
+        }
+        
+        function renderProductList(products) {
+            const list = document.getElementById('productList');
+            list.innerHTML = products.map(p => `
+                <div class="product-item" onclick="selectProduct('${p.sku || p.id}')">
+                    <div class="sku">${p.sku || 'Sin SKU'}</div>
+                    <div class="title">${p.title}</div>
+                    <span class="status-badge status-no-asin">Pendiente</span>
+                </div>
+            `).join('');
+        }
+        
+        async function selectProduct(sku) {
+            // Marcar activo
+            document.querySelectorAll('.product-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            // Mostrar loading
+            const panel = document.getElementById('detailPanel');
+            panel.innerHTML = `
+                <h2>🔍 Análisis del Producto</h2>
+                <div class="loading visible">
+                    <div class="spinner"></div>
+                    <p>Analizando producto y buscando en Amazon...</p>
+                </div>
+            `;
+            
+            try {
+                const res = await fetch(`/api/publish/sku/${sku}`);
+                const data = await res.json();
+                currentProduct = data;
+                renderProductDetail(data);
+            } catch (err) {
+                panel.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`;
+            }
+        }
+        
+        function renderProductDetail(data) {
+            const panel = document.getElementById('detailPanel');
+            const shopify = data.shopify || {};
+            const extracted = data.extracted || {};
+            const amazon = data.amazon || {};
+            
+            // Determinar campos faltantes
+            const missing = [];
+            if (!extracted.bullets || extracted.bullets.length === 0) missing.push('Viñetas / Bullet Points');
+            if (!extracted.cleanDescription || extracted.cleanDescription.length < 50) missing.push('Descripción optimizada');
+            if (!extracted.title || extracted.title.length < 30) missing.push('Título SEO optimizado');
+            if (!extracted.color) missing.push('Color');
+            if (!extracted.material) missing.push('Material');
+            if (!extracted.modelNumber) missing.push('Número de modelo');
+            
+            const hasAsin = !!amazon.asin;
+            
+            panel.innerHTML = `
+                <h2>🔍 Análisis del Producto</h2>
+                
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('datos')">📊 Datos Extraídos</div>
+                    <div class="tab" onclick="switchTab('amazon')">🛒 Amazon</div>
+                    <div class="tab" onclick="switchTab('acciones')">⚡ Acciones</div>
+                </div>
+                
+                <div id="tab-datos" class="tab-content active">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>SKU</label>
+                            <div class="value">${shopify.sku || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Precio</label>
+                            <div class="value">$${shopify.price || '0'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Marca</label>
+                            <div class="value">${extracted.brand || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>GTIN/EAN</label>
+                            <div class="value">${extracted.externalId || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Color detectado</label>
+                            <div class="value">${extracted.color || '⚠️ No detectado'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Material detectado</label>
+                            <div class="value">${extracted.material || '⚠️ No detectado'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Conectividad</label>
+                            <div class="value">${extracted.connectivity || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Modelo</label>
+                            <div class="value">${extracted.modelNumber || '⚠️ No detectado'}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <label>Título actual:</label>
+                        <div style="font-weight: 500; margin-top: 5px;">${shopify.title}</div>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <label>Imágenes (${(shopify.images || []).length}):</label>
+                        <div class="image-gallery">
+                            ${(shopify.images || []).slice(0, 5).map(img => `<img src="${img}" alt="">`).join('')}
+                        </div>
+                    </div>
+                    
+                    ${extracted.bullets && extracted.bullets.length > 0 ? `
+                        <div style="margin-top: 15px;">
+                            <label>Viñetas detectadas (${extracted.bullets.length}):</label>
+                            <ul style="margin-top: 5px; padding-left: 20px;">
+                                ${extracted.bullets.map(b => `<li>${b}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div id="tab-amazon" class="tab-content">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>ASIN Encontrado</label>
+                            <div class="value">${amazon.asin || '❌ No encontrado'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Tipo de Match</label>
+                            <div class="value">${amazon.matchType || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Título en Amazon</label>
+                            <div class="value">${amazon.existingTitle || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Marca en Amazon</label>
+                            <div class="value">${amazon.existingBrand || 'N/A'}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <label>Tipo de Producto Detectado:</label>
+                        <select class="category-select" id="categorySelect">
+                            <option value="${amazon.productType}" selected>${amazon.productType} (detectado)</option>
+                            <option value="HEADPHONES">Audífonos (HEADPHONES)</option>
+                            <option value="SPEAKER">Bocina/Altavoz (SPEAKER)</option>
+                            <option value="CHARGER">Cargador (CHARGER)</option>
+                            <option value="PORTABLE_POWER_BANK">Power Bank (PORTABLE_POWER_BANK)</option>
+                            <option value="SMARTWATCH">Smartwatch (SMARTWATCH)</option>
+                            <option value="LIGHT_BULB">Foco/Iluminación (LIGHT_BULB)</option>
+                            <option value="CELLULAR_PHONE_CASE">Funda Celular (CELLULAR_PHONE_CASE)</option>
+                            <option value="SCREEN_PROTECTOR">Mica/Protector (SCREEN_PROTECTOR)</option>
+                            <option value="VACUUM_CLEANER">Aspiradora (VACUUM_CLEANER)</option>
+                            <option value="POWER_DRILL">Taladro (POWER_DRILL)</option>
+                            <option value="AIR_CONDITIONER">Aire Acondicionado (AIR_CONDITIONER)</option>
+                            <option value="TOOLS">Herramientas (TOOLS)</option>
+                            <option value="TABLET">Tablet (TABLET)</option>
+                            <option value="CAMERA">Cámara (CAMERA)</option>
+                            <option value="COMPUTER_KEYBOARD">Teclado (COMPUTER_KEYBOARD)</option>
+                            <option value="FLASH_DRIVES">USB/Memoria (FLASH_DRIVES)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="tab-acciones" class="tab-content">
+                    ${missing.length > 0 ? `
+                        <div class="missing-fields">
+                            <h3>⚠️ Campos faltantes detectados (${missing.length})</h3>
+                            <p style="margin-bottom: 10px; font-size: 13px;">
+                                El servidor extrajo datos de Shopify pero estos campos están incompletos o faltan.
+                                Necesitan ser generados/optimizados antes de publicar.
+                            </p>
+                            ${missing.map(m => `<span class="field-tag">${m}</span>`).join('')}
+                        </div>
+                    ` : `
+                        <div style="background: #d4edda; border: 1px solid #28a745; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+                            <h3 style="color: #155724;">✅ Todos los campos completos</h3>
+                            <p style="color: #155724;">El producto tiene todos los datos necesarios para publicar.</p>
+                        </div>
+                    `}
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label>Stock a publicar:</label>
+                        <input type="number" id="stockInput" value="${extracted.quantity || 1}" 
+                               style="width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-left: 10px;">
+                    </div>
+                    
+                    <button class="btn btn-warning" onclick="generateWithAI()">
+                        🤖 Generar/Optimizar con IA
+                    </button>
+                    
+                    <button class="btn btn-success" onclick="publishToAmazon()" ${!hasAsin && missing.length > 0 ? 'disabled' : ''}>
+                        🚀 Publicar en Amazon
+                    </button>
+                    
+                    <div class="generated-content" id="generatedContent">
+                        <h3>✨ Contenido Generado</h3>
+                        <div id="generatedBody"></div>
+                        <button class="btn btn-primary" style="margin-top: 10px;" onclick="applyGenerated()">
+                            ✅ Aplicar y Publicar
+                        </button>
+                    </div>
+                    
+                    <div class="result-box" id="resultBox"></div>
+                </div>
+            `;
+        }
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+        
+        async function generateWithAI() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '🤖 Generando...';
+            
+            const contentDiv = document.getElementById('generatedContent');
+            const bodyDiv = document.getElementById('generatedBody');
+            
+            try {
+                const res = await fetch('/api/panel/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sku: currentProduct.shopify.sku,
+                        productType: document.getElementById('categorySelect').value,
+                        extracted: currentProduct.extracted,
+                        amazon: currentProduct.amazon
+                    })
+                });
+                
+                const data = await res.json();
+                currentAnalysis = data;
+                
+                bodyDiv.innerHTML = `
+                    <div style="margin-bottom: 15px;">
+                        <label><strong>Título SEO optimizado:</strong></label>
+                        <textarea class="editable-field" id="generatedTitle" rows="2">${data.title}</textarea>
+                        <div class="seo-preview">
+                            <div class="seo-title">${data.title}</div>
+                            <div class="seo-url">amazon.com.mx › ${currentProduct.extracted.brand || 'Brand'} › ${document.getElementById('categorySelect').value}</div>
+                            <div class="seo-desc">${data.description.substring(0, 160)}...</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label><strong>Descripción optimizada:</strong></label>
+                        <textarea class="editable-field" id="generatedDescription" rows="6">${data.description}</textarea>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label><strong>Viñetas (Bullet Points):</strong></label>
+                        ${data.bullets.map((b, i) => `
+                            <textarea class="editable-field" id="bullet${i}" rows="2">${b}</textarea>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="info-grid" style="margin-top: 15px;">
+                        <div class="info-item">
+                            <label>Color sugerido</label>
+                            <div class="value">${data.color}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Material sugerido</label>
+                            <div class="value">${data.material}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Modelo sugerido</label>
+                            <div class="value">${data.modelNumber}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Keywords</label>
+                            <div class="value">${(data.keywords || []).join(', ')}</div>
+                        </div>
+                    </div>
+                `;
+                
+                contentDiv.classList.add('visible');
+                
+            } catch (err) {
+                alert('Error generando contenido: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🤖 Generar/Optimizar con IA';
+            }
+        }
+        
+        async function applyGenerated() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Publicando...';
+            
+            try {
+                const bullets = [];
+                for (let i = 0; i < 5; i++) {
+                    const el = document.getElementById(`bullet${i}`);
+                    if (el && el.value.trim()) bullets.push(el.value.trim());
+                }
+                
+                const res = await fetch(`/api/publish/sku/${currentProduct.shopify.sku}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stock: parseInt(document.getElementById('stockInput').value) || 1,
+                        title: document.getElementById('generatedTitle').value,
+                        description: document.getElementById('generatedDescription').value,
+                        bullets: bullets,
+                        productType: document.getElementById('categorySelect').value,
+                        color: currentAnalysis?.color,
+                        material: currentAnalysis?.material,
+                        modelNumber: currentAnalysis?.modelNumber,
+                        keywords: currentAnalysis?.keywords
+                    })
+                });
+                
+                const data = await res.json();
+                showResult(data);
+                
+            } catch (err) {
+                showResult({ success: false, message: err.message });
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✅ Aplicar y Publicar';
+            }
+        }
+        
+        async function publishToAmazon() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '🚀 Publicando...';
+            
+            try {
+                const res = await fetch(`/api/publish/sku/${currentProduct.shopify.sku}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stock: parseInt(document.getElementById('stockInput').value) || 1
+                    })
+                });
+                
+                const data = await res.json();
+                showResult(data);
+                
+            } catch (err) {
+                showResult({ success: false, message: err.message });
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Publicar en Amazon';
+            }
+        }
+        
+        function showResult(data) {
+            const box = document.getElementById('resultBox');
+            box.className = `result-box visible ${data.success ? 'result-success' : 'result-error'}`;
+            box.innerHTML = `
+                <h3>${data.success ? '✅ Éxito' : '❌ Error'}</h3>
+                <p><strong>${data.message}</strong></p>
+                ${data.asin ? `<p>ASIN: <code>${data.asin}</code></p>` : ''}
+                ${data.errors ? `<pre style="margin-top: 10px; font-size: 12px; overflow-x: auto;">${JSON.stringify(data.errors, null, 2)}</pre>` : ''}
+            `;
+        }
+        
+        // Cargar productos al iniciar
+        loadProducts();
+    </script>
+</body>
+</html>
