@@ -104,8 +104,13 @@ export class AmazonPublishService {
       }
       
       console.log(`[Amazon] Enviando a SP API...`);
+      console.log(`[Amazon] Seller ID: ${sellerId}`);
+      console.log(`[Amazon] SKU: ${listing.sellerSku}`);
+      console.log(`[Amazon] Marketplace: ${marketplaceId}`);
       
-      const url = `${this.spApiEndpoint}/listings/2021-08-01/items/${sellerId}/${listing.sellerSku}?marketplaceIds=${marketplaceId}`;
+      const encodedSku = encodeURIComponent(listing.sellerSku);
+      const url = `${this.spApiEndpoint}/listings/2021-08-01/items/${sellerId}/${encodedSku}?marketplaceIds=${marketplaceId}`;
+      console.log(`[Amazon] URL: ${url}`);
       
       const response = await axios.put(url, payload, {
         headers: {
